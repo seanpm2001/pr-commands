@@ -13,10 +13,13 @@ import hashlib
 log = logging.getLogger(__name__)
 
 
-uri = os.environ.get('JENKINS_URI', 'https://jenkinsci.saltstack.com/api/json')
+uri = os.environ.get('JENKINS_URI', 'https://jenkins.saltproject.io')
 user = os.environ['JENKINS_USER']
 password = os.environ['JENKINS_PASS']
 github_secret = os.environ['GITHUB_SECRET']
+verify = os.environ.get('SSL_CERT', True)
+if verify == 'False':
+    verify = False
 log_level = os.environ.get('LOG_LEVEL', 'INFO')
 
 
@@ -76,9 +79,10 @@ def get_pr_jobs():
     Get all Jenkins jobs associated with pull requests
     '''
     res = requests.get(
-        'https://jenkinsci.saltstack.com/view/Pull%20Requests/api/json',
+        uri + '/view/Pull%20Requests/api/json',
             headers={'accept': 'application/json'},
             auth=requests.auth.HTTPBasicAuth(user, password),
+            verify=verify,
         )
     if res.status_code != 200:
         raise RuntimeError("Received non 200 status code from jenkins")
@@ -92,14 +96,16 @@ def get_pr_jobs():
 @timedcache
 def job_has_params(job_url):
     res = requests.get(
-        '{}/api/json'.format(job_url.rstrip('/'))
+        '{}/api/json'.format(job_url.rstrip('/')),
+        verify=verify,
     )
     if res.status_code != 200:
         raise RuntimeError("Received non 200 status code from jenkins")
     data = res.json()
     data['jobs'][-1]['url']
     res = requests.get(
-        '{}/api/json'.format(data['jobs'][-1]['url'])
+        '{}/api/json'.format(data['jobs'][-1]['url']),
+        verify=verify,
     )
     if res.status_code != 200:
         raise RuntimeError("Received non 200 status code from jenkins")
@@ -150,8 +156,9 @@ def build_job(job_url, pr_number, run_full, has_params):
             pr_number,
         )
     res = requests.get(
-        'https://jenkinsci.saltstack.com/crumbIssuer/api/json',
+        uri + '/crumbIssuer/api/json',
         auth=requests.auth.HTTPBasicAuth(user, password),
+        verify=verify,
     )
     if res.status_code != 200:
         raise Exception("Jenkins returned non 200 response")
@@ -163,6 +170,7 @@ def build_job(job_url, pr_number, run_full, has_params):
             data['crumbRequestField']: data['crumb']
         },
         auth=requests.auth.HTTPBasicAuth(user, password),
+        verify=verify,
     )
     if res.status_code == 201:
         log.info("Build started: %s", pr_url)
