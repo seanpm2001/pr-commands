@@ -124,8 +124,9 @@ def job_has_params(job_url):
     """
     name = job_url.rstrip("/").rsplit("/")[-1]
     if name in (
-        "pr-doc",
+        "pr-docs",
         "pr-lint",
+        "pr-pre-commit",
     ):
         return False
     else:
